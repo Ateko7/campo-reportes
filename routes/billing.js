@@ -80,22 +80,6 @@ router.get('/estado', (req, res) => {
   });
 });
 
-/* ---- Diagnóstico temporal (protegido por SESSION_SECRET) ---- */
-router.get('/diag', async (req, res) => {
-  if (req.query.key !== process.env.SESSION_SECRET) return res.status(403).json({ error: 'no autorizado' });
-  const action = req.query.action || 'test';
-  let body = {};
-  try { if (req.query.body) body = JSON.parse(req.query.body); } catch { return res.status(400).json({ error: 'body JSON inválido' }); }
-  try {
-    if (action === 'test') return res.json(await recurrenteRaw('/test'));
-    if (action === 'product') return res.json(await recurrenteRaw('/products', { method: 'POST', body }));
-    if (action === 'checkout') return res.json(await recurrenteRaw('/checkouts', { method: 'POST', body }));
-    if (action === 'get') return res.json(await recurrenteRaw(req.query.path || '/products'));
-    if (action === 'post') return res.json(await recurrenteRaw(req.query.path, { method: 'POST', body }));
-    res.json({ error: 'acción desconocida' });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
 /* ---- Iniciar checkout / suscripción ---- */
 router.post('/checkout', requireRol('admin'), async (req, res) => {
   const empresa = req.empresa;
