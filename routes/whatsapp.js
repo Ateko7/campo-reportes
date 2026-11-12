@@ -77,4 +77,70 @@ router.post('/whatsapp', async (req, res) => {
   } catch (e) { console.error(e); res.type('text/xml').send(twiml('Ocurrió un error al registrar. Intenta de nuevo.')); }
 });
 
+/* ============================================================
+   WhatsApp Cloud API de Meta (oficial)
+   - GET  /webhook/meta  -> verificación del webhook
+   - POST /webhook/meta  -> mensajes entrantes (JSON de Meta)
+   Variables: META_VERIFY_TOKEN, META_ACCESS_TOKEN
+   ============================================================ */
+const META_API = process.env.META_API_VERSION || 'v21.0';
+
+async function resolverEmpresaMeta(phoneId) {
+  let emp = phoneId ? await getEmpresaPorWhatsapp(String(phoneId)) : null;
+  if (!emp && process.env.EMPRESA_DEFAULT_SLUG) emp = await getEmpresaPorSlug(process.env.EMPRESA_DEFAULT_SLUG);
+  return emp;
+}
+
+async function enviarMeta(phoneId, to, body) {
+  const token = process.env.META_ACCESS_TOKEN;
+  if (!token || !phoneId) return;
+  try {
+    const r = await fetch(`https://graph.facebook.com/${META_API}/${phoneId}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messaging_product: 'whatsapp', to, type: 'text', text: { body } }),
+    });
+    if (!r.ok) console.error('Meta send', r.status, (await r.text()).slice(0, 200));
+  } catch (e) { console.error('Error enviando a Meta:', e.message); }
+}
+
+// Verificación del webhook (Meta llama con hub.challenge)
+router.get('/meta', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+  if (mode === 'subscribe' && token && token === process.env.META_VERIFY_TOKEN) {
+    return res.status(200).send(challenge);
+  }
+  res.sendStatus(403);
+});
+
+// Recepción de mensajes de Meta
+router.post('/meta', async (req, res) => {
+  try {
+    const value = req.body?.entry?.[0]?.changes?.[0]?.value;
+    if (value?.messages?.length) {
+      const phoneId = value.metadata?.phone_number_id;
+      const empresa = await resolverEmpresaMeta(phoneId);
+      if (empresa) {
+        const nombre = value.contacts?.[0]?.profile?.name;
+        for (const m of value.messages) {
+          let body = '', lat = null, lng = null, mediaUrl = null;
+          if (m.type === 'text') body = m.text?.body || '';
+          else if (m.type === 'location') {
+            body = m.location?.name || m.location?.address || 'Ubicación compartida';
+            lat = m.location?.latitude; lng = m.location?.longitude;
+          } else if (m.type === 'image') { body = m.image?.caption || '[imagen]'; mediaUrl = m.image?.id || null; }
+          else body = `[${m.type}]`;
+          const { parsed } = await procesarMensaje({
+            empresaId: empresa.id, body, from: m.from, fromName: nombre, lat, lng, mediaUrl,
+          });
+          await enviarMeta(phoneId, m.from, await construirRespuesta(empresa.id, parsed));
+        }
+      }
+    }
+  } catch (e) { console.error('Webhook Meta error:', e.message); }
+  res.sendStatus(200); // Meta exige 200 siempre
+});
+
 export default router;
