@@ -27,29 +27,37 @@ const router = express.Router();
 */
 
 const API_BASE = 'https://app.recurrente.com/api';
-const PRECIO_MENSUAL = process.env.PRECIO_MENSUAL || 'US$ 29 / mes';
+const CURRENCY = process.env.RECURRENTE_CURRENCY || 'GTQ';
+const AMOUNT_CENTS = parseInt(process.env.RECURRENTE_AMOUNT_CENTS || '19900', 10);
+const PRECIO_MENSUAL = process.env.PRECIO_MENSUAL ||
+  `${CURRENCY === 'GTQ' ? 'Q' : CURRENCY + ' '}${(AMOUNT_CENTS / 100).toFixed(2)} / mes`;
 
 function tieneClaves() {
-  return !!(process.env.RECURRENTE_PUBLIC_KEY && process.env.RECURRENTE_SECRET_KEY && process.env.RECURRENTE_PRICE_ID);
+  return !!process.env.RECURRENTE_SECRET_KEY;
 }
 function appUrl(req) {
   return process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
 }
 
-async function recurrenteFetch(path, { method = 'GET', body } = {}) {
+// Petición cruda: devuelve {ok, status, data} sin lanzar (para diagnóstico y flujo)
+async function recurrenteRaw(path, { method = 'GET', body } = {}) {
   const res = await fetch(API_BASE + path, {
     method,
     headers: {
       'Content-Type': 'application/json',
-      'X-PUBLIC-KEY': process.env.RECURRENTE_PUBLIC_KEY,
-      'X-SECRET-KEY': process.env.RECURRENTE_SECRET_KEY,
+      Accept: 'application/json',
+      'X-SECRET-KEY': process.env.RECURRENTE_SECRET_KEY || '',
     },
     body: body ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
-  let data; try { data = JSON.parse(text); } catch { data = { raw: text }; }
-  if (!res.ok) throw new Error(`Recurrente ${res.status}: ${text.slice(0, 300)}`);
-  return data;
+  let data; try { data = JSON.parse(text); } catch { data = { raw: text.slice(0, 500) }; }
+  return { ok: res.ok, status: res.status, data };
+}
+async function recurrenteFetch(path, opts) {
+  const r = await recurrenteRaw(path, opts);
+  if (!r.ok) throw new Error(`Recurrente ${r.status}: ${JSON.stringify(r.data).slice(0, 300)}`);
+  return r.data;
 }
 
 function sumarUnMes(fechaISO) {
@@ -70,6 +78,21 @@ router.get('/estado', (req, res) => {
     suscripcion_activa: suscripcionActiva(e),
     modo_demo: !tieneClaves(),
   });
+});
+
+/* ---- Diagnóstico temporal (protegido por SESSION_SECRET) ---- */
+router.get('/diag', async (req, res) => {
+  if (req.query.key !== process.env.SESSION_SECRET) return res.status(403).json({ error: 'no autorizado' });
+  const action = req.query.action || 'test';
+  let body = {};
+  try { if (req.query.body) body = JSON.parse(req.query.body); } catch { return res.status(400).json({ error: 'body JSON inválido' }); }
+  try {
+    if (action === 'test') return res.json(await recurrenteRaw('/test'));
+    if (action === 'product') return res.json(await recurrenteRaw('/products', { method: 'POST', body }));
+    if (action === 'checkout') return res.json(await recurrenteRaw('/checkouts', { method: 'POST', body }));
+    if (action === 'get') return res.json(await recurrenteRaw(req.query.path || '/products'));
+    res.json({ error: 'acción desconocida' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 /* ---- Iniciar checkout / suscripción ---- */
