@@ -112,7 +112,15 @@ router.post('/checkout', requireRol('admin'), async (req, res) => {
     const data = await recurrenteFetch('/checkouts', {
       method: 'POST',
       body: {
-        items: [{ price_id: process.env.RECURRENTE_PRICE_ID }],
+        items: [{
+          name: `${empresa.nombre} — Campo Reportes (Plan Básico)`,
+          amount_in_cents: AMOUNT_CENTS,
+          currency: CURRENCY,
+          quantity: 1,
+          charge_type: 'recurring',
+          billing_interval: 'month',
+          billing_interval_count: 1,
+        }],
         success_url: `${appUrl(req)}/billing/exito`,
         cancel_url: `${appUrl(req)}/billing/cancelado`,
         metadata: { empresa_id: String(empresa.id), empresa_slug: empresa.slug },
@@ -135,7 +143,24 @@ router.get('/demo-exito', requireRol('admin'), async (req, res) => {
   res.redirect('/suscripcion.html?activado=1');
 });
 
-router.get('/exito', (_req, res) => res.redirect('/suscripcion.html?pago=exito'));
+// Al volver del pago: confirmamos el estado del checkout en Recurrente y activamos.
+router.get('/exito', async (req, res) => {
+  try {
+    const cid = req.empresa?.recurrente_checkout_id;
+    if (cid && tieneClaves()) {
+      const r = await recurrenteRaw(`/checkouts/${cid}`);
+      const st = String(r.data?.status || '').toLowerCase();
+      const pagado = r.ok && (['paid', 'completed', 'succeeded', 'active'].includes(st) || !!r.data?.payment);
+      if (pagado) {
+        await actualizarEmpresa(req.empresaId, {
+          sub_estado: 'active', sub_hasta: sumarUnMes(req.empresa.sub_hasta), plan: 'basico',
+        });
+        return res.redirect('/suscripcion.html?pago=exito');
+      }
+    }
+  } catch (e) { console.error('exito:', e.message); }
+  res.redirect('/suscripcion.html?pago=pendiente');
+});
 router.get('/cancelado', (_req, res) => res.redirect('/suscripcion.html?pago=cancelado'));
 
 /* ---- Verificación de firma Svix ---- */

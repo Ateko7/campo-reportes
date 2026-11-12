@@ -55,6 +55,10 @@
       }
       if (params.get('activado') || params.get('pago') === 'exito') {
         document.getElementById('estado').innerHTML = '✅ <b>¡Suscripción activada!</b> Ya puedes usar la plataforma.';
+      } else if (params.get('pago') === 'pendiente') {
+        document.getElementById('estado').innerHTML = '⏳ <b>Pago en proceso.</b> En cuanto Recurrente lo confirme, tu cuenta queda activa. Refresca en un momento.';
+      } else if (params.get('pago') === 'cancelado') {
+        document.getElementById('estado').innerHTML = '✖️ <b>Pago cancelado.</b> Puedes intentarlo de nuevo cuando quieras.';
       }
       document.getElementById('btnPagar').onclick = async () => {
         const r = await api('/billing/checkout', { method: 'POST' });
