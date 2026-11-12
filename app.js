@@ -4,6 +4,7 @@ import cookieSession from 'cookie-session';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
+import pool from './db.js';
 import { cargarSesion, requireAuth, requireSuscripcion } from './auth.js';
 import authRouter from './routes/auth.js';
 import whatsappRouter from './routes/whatsapp.js';
@@ -47,6 +48,12 @@ app.use('/auth', authRouter);
 app.use('/webhook', whatsappRouter);
 app.use('/billing', billingRouter);
 app.get('/health', (_req, res) => res.json({ ok: true }));
+app.get('/dbcheck', async (_req, res) => {
+  try {
+    const r = await pool.query('select current_user, current_schema() as schema, count(*)::int as empresas from empresas');
+    res.json({ db: 'ok', info: r.rows[0] });
+  } catch (e) { res.status(500).json({ db: 'error', message: e.message }); }
+});
 
 // --- Páginas protegidas ---
 const pagina = (nombre) => (req, res) => res.sendFile(join(__dirname, 'views', nombre));
