@@ -31,6 +31,7 @@
 
     function fmtEstado(e) {
       const map = {
+        pending: ['🟡', 'Suscripción no activada'],
         trialing: ['🎁', 'En prueba gratis'],
         active: ['✅', 'Suscripción activa'],
         past_due: ['⚠️', 'Pago pendiente'],
@@ -52,6 +53,10 @@
         const n = document.getElementById('notaDemo');
         n.hidden = false;
         n.innerHTML = 'ℹ️ <b>Modo demo:</b> sin claves de Recurrente configuradas. El botón activa la cuenta localmente para pruebas.';
+      }
+      if (params.get('nuevo')) {
+        document.getElementById('estado').innerHTML = '👋 <b>¡Bienvenido!</b> Para empezar a usar la plataforma, activa tu plan abajo.';
+        document.getElementById('btnPagar').textContent = 'Activar mi plan y empezar';
       }
       if (params.get('activado') || params.get('pago') === 'exito') {
         document.getElementById('estado').innerHTML = '✅ <b>¡Suscripción activada!</b> Ya puedes usar la plataforma.';

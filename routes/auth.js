@@ -30,7 +30,7 @@ router.post('/registro', async (req, res) => {
   const user = await crearUsuario({ empresaId: emp.id, nombre, email, passwordHash: hash, rol: 'owner' });
 
   req.session.usuarioId = user.id;
-  res.json({ ok: true, redirect: '/' });
+  res.json({ ok: true, redirect: '/suscripcion.html?nuevo=1' });
 });
 
 // POST /auth/login

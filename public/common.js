@@ -65,7 +65,9 @@ export async function montarShell(activo) {
   if (!e.suscripcion_activa && !location.pathname.startsWith('/suscripcion')) {
     const b = document.createElement('div');
     b.className = 'banner-sub';
-    b.innerHTML = `⚠️ Tu prueba o suscripción terminó. <a href="/suscripcion.html">Activa tu plan</a> para seguir usando la plataforma.`;
+    b.innerHTML = e.sub_estado === 'pending'
+      ? `🟡 Activa tu suscripción para empezar a usar la plataforma. <a href="/suscripcion.html">Activar plan</a>`
+      : `⚠️ Tu suscripción no está activa. <a href="/suscripcion.html">Reactivar plan</a> para seguir usando la plataforma.`;
     document.body.prepend(b);
   } else if (e.sub_estado === 'trialing' && e.trial_hasta) {
     const dias = Math.ceil((new Date(e.trial_hasta) - new Date()) / 86400000);

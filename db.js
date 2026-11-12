@@ -48,8 +48,9 @@ export async function seedAccionesDefault(empresaId) {
 
 // ---------- Empresas ----------
 export async function crearEmpresa({ nombre, slug }) {
+  // Nace "pendiente": debe pagar la suscripción para activarse (cobro al registrarse)
   const empresa = await one(
-    `INSERT INTO empresas (nombre, slug, trial_hasta) VALUES ($1,$2,(now()+interval '14 days')::date) RETURNING *`,
+    `INSERT INTO empresas (nombre, slug, sub_estado) VALUES ($1,$2,'pending') RETURNING *`,
     [nombre, slug]);
   await seedAccionesDefault(empresa.id);
   return empresa;
