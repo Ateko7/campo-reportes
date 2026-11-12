@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Suscripción — Campo Reportes</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header id="nav" class="topbar"></header>
+  <div class="page">
+    <h2>Suscripción</h2>
+    <div id="estado" class="sub-estado"></div>
+
+    <div class="plan-card">
+      <div class="plan-top">
+        <div>
+          <h3>Plan Básico</h3>
+          <p class="muted">Reportes por WhatsApp ilimitados · Tablero en vivo · Exportación · Config por empresa</p>
+        </div>
+        <div class="plan-precio" id="precio">—</div>
+      </div>
+      <button id="btnPagar" class="btn btn-wa btn-block">Activar suscripción</button>
+      <p class="muted center" id="notaDemo" hidden></p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { montarShell, api } from './common.js';
+    const params = new URLSearchParams(location.search);
+
+    function fmtEstado(e) {
+      const map = {
+        trialing: ['🎁', 'En prueba gratis'],
+        active: ['✅', 'Suscripción activa'],
+        past_due: ['⚠️', 'Pago pendiente'],
+        canceled: ['⛔', 'Cancelada'],
+      };
+      const [ico, txt] = map[e.sub_estado] || ['', e.sub_estado];
+      let detalle = '';
+      if (e.sub_estado === 'trialing' && e.trial_hasta) detalle = ` · termina el ${e.trial_hasta}`;
+      if (e.sub_estado === 'active' && e.sub_hasta) detalle = ` · renueva el ${e.sub_hasta}`;
+      return `${ico} <b>${txt}</b>${detalle}`;
+    }
+
+    (async () => {
+      await montarShell('suscripcion');
+      const est = await api('/billing/estado');
+      document.getElementById('precio').textContent = est.precio;
+      document.getElementById('estado').innerHTML = fmtEstado(est);
+      if (est.modo_demo) {
+        const n = document.getElementById('notaDemo');
+        n.hidden = false;
+        n.innerHTML = 'ℹ️ <b>Modo demo:</b> sin claves de Recurrente configuradas. El botón activa la cuenta localmente para pruebas.';
+      }
+      if (params.get('activado') || params.get('pago') === 'exito') {
+        document.getElementById('estado').innerHTML = '✅ <b>¡Suscripción activada!</b> Ya puedes usar la plataforma.';
+      }
+      document.getElementById('btnPagar').onclick = async () => {
+        const r = await api('/billing/checkout', { method: 'POST' });
+        if (r.checkout_url) location.href = r.checkout_url;
+      };
+    })();
+  </script>
+</body>
+</html>

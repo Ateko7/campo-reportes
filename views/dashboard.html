@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tablero — Campo Reportes</title>
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header id="nav" class="topbar"></header>
+
+  <div class="toolbar">
+    <h2>Tablero en vivo</h2>
+    <div class="actions">
+      <button id="btnSimular" class="btn btn-wa">💬 Simular WhatsApp</button>
+      <a id="btnExcel" class="btn btn-ghost-dark" href="/export/excel">⬇️ Excel</a>
+      <a id="btnPdf" class="btn btn-ghost-dark" href="/export/pdf">⬇️ PDF</a>
+      <button id="btnRefrescar" class="btn btn-ghost-dark" title="Refrescar">🔄</button>
+    </div>
+  </div>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="filtros">
+    <input type="search" id="fQ" placeholder="🔎 Buscar en notas, insumos..." />
+    <select id="fTipo"><option value="">Todas las acciones</option></select>
+    <select id="fLote"><option value="">Todos los lotes</option></select>
+    <select id="fCultivo"><option value="">Todos los cultivos</option></select>
+    <input type="date" id="fDesde" title="Desde" />
+    <input type="date" id="fHasta" title="Hasta" />
+    <button id="btnLimpiar" class="btn btn-ghost-dark">Limpiar</button>
+  </section>
+
+  <div class="layout">
+    <main class="tabla-wrap">
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th>Acción</th><th>Lote</th><th>Cultivo</th><th>Detalle</th>
+            <th>Productor</th><th>Fecha</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div id="vacio" class="vacio" hidden>
+        <p>Aún no hay reportes. Usa <b>💬 Simular WhatsApp</b> para enviar el primero.</p>
+      </div>
+    </main>
+
+    <aside class="mapa-wrap">
+      <h3>📍 Ubicaciones</h3>
+      <div id="mapa"></div>
+    </aside>
+  </div>
+
+  <div id="modalDetalle" class="modal" hidden>
+    <div class="modal-card">
+      <button class="modal-close" data-close>✕</button>
+      <div id="detalleContenido"></div>
+    </div>
+  </div>
+
+  <div id="modalSim" class="modal" hidden>
+    <div class="modal-card">
+      <button class="modal-close" data-close>✕</button>
+      <h2>💬 Simular mensaje de WhatsApp</h2>
+      <p class="muted">Escribe como lo haría un productor en campo. El sistema lo interpreta y lo registra.</p>
+      <label>Productor (nombre)</label>
+      <input id="simNombre" type="text" value="Juan Pérez" />
+      <label>Teléfono</label>
+      <input id="simTel" type="text" value="+5215512345678" />
+      <label>Mensaje</label>
+      <textarea id="simBody" rows="3" placeholder="Ej: Sembré hoy el lote 4 de maíz, 3 hectáreas"></textarea>
+      <div class="ejemplos" id="ejemplos"><span>Ejemplos:</span></div>
+      <div class="sim-geo">
+        <label><input type="checkbox" id="simGeo" /> Incluir ubicación GPS (aleatoria cerca)</label>
+      </div>
+      <button id="simEnviar" class="btn btn-wa btn-block">Enviar mensaje ▶</button>
+      <div id="simRespuesta" class="sim-resp" hidden></div>
+    </div>
+  </div>
+
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

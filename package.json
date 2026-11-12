@@ -1,0 +1,23 @@
+{
+  "name": "campo-reportes",
+  "version": "2.0.0",
+  "description": "SaaS de reportes de campo agrícola por WhatsApp (multi-empresa, Postgres, Vercel)",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cookie-session": "^2.1.0",
+    "dotenv": "^16.4.7",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.2",
+    "pdfkit": "^0.15.2",
+    "pg": "^8.13.1"
+  }
+}

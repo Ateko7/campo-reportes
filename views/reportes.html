@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reportes — Campo Reportes</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header id="nav" class="topbar"></header>
+  <div class="page">
+    <h2>Reportes</h2>
+
+    <div class="tabs">
+      <button class="tab activo" data-rep="aplicaciones">🧪 Aplicaciones</button>
+      <button class="tab" data-rep="cosechas">🚜 Cosechas</button>
+      <button class="tab" data-rep="cantidades">⚖️ Cantidades cosechadas</button>
+    </div>
+
+    <div class="rep-filtros">
+      <input type="date" id="rDesde" title="Desde" />
+      <input type="date" id="rHasta" title="Hasta" />
+      <button id="rAplicar" class="btn btn-sm">Aplicar</button>
+      <span class="spacer"></span>
+      <a id="rExcel" class="btn btn-ghost-dark" href="#">⬇️ Excel</a>
+      <a id="rPdf" class="btn btn-ghost-dark" href="#">⬇️ PDF</a>
+    </div>
+
+    <div id="repContenido"></div>
+  </div>
+
+  <script type="module">
+    import { montarShell, api } from './common.js';
+    const $ = (s) => document.querySelector(s);
+    const $$ = (s) => document.querySelectorAll(s);
+    let repActual = 'aplicaciones';
+
+    function qs() {
+      const p = new URLSearchParams();
+      if ($('#rDesde').value) p.set('desde', $('#rDesde').value);
+      if ($('#rHasta').value) p.set('hasta', $('#rHasta').value);
+      return p;
+    }
+
+    function tablaHTML(cols, filas) {
+      return `<table class="tabla"><thead><tr>${cols.map((c) => `<th>${c}</th>`).join('')}</tr></thead>
+        <tbody>${filas.map((f) => `<tr>${f.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    }
+
+    async function render() {
+      const query = qs().toString();
+      // links de exportación
+      $('#rExcel').href = `/export/${repActual}.xlsx` + (query ? '?' + query : '');
+      $('#rPdf').href = `/export/${repActual}.pdf` + (query ? '?' + query : '');
+
+      if (repActual === 'aplicaciones') {
+        const d = await api('/api/reportes-aplicaciones?' + query);
+        const resumen = tablaHTML(['Producto/Insumo', 'Aplicaciones', 'Cantidad total', 'Unidad'],
+          d.resumen.map((r) => [r.producto, r.aplicaciones, r.cantidad || '—', r.unidad || '']));
+        const detalle = tablaHTML(['Fecha', 'Lote', 'Cultivo', 'Producto', 'Cantidad', 'Productor'],
+          d.rows.map((r) => [(r.fecha || r.created_at || '').slice(0, 10), r.lote || '—', r.cultivo || '—', r.producto || '—', `${r.cantidad ?? ''} ${r.unidad || ''}`, r.productor_nombre || '—']));
+        $('#repContenido').innerHTML = `<h3>Resumen por insumo</h3>${resumen}<h3>Detalle (${d.rows.length})</h3>${detalle}`;
+      }
+      else if (repActual === 'cosechas') {
+        const d = await api('/api/reportes-cosechas?' + query);
+        const detalle = tablaHTML(['Fecha', 'Lote', 'Cultivo', 'Cantidad', 'Unidad', 'Productor'],
+          d.rows.map((r) => [(r.fecha || r.created_at || '').slice(0, 10), r.lote || '—', r.cultivo || '—', r.cantidad ?? '—', r.unidad || '', r.productor_nombre || '—']));
+        $('#repContenido').innerHTML = `<h3>Cosechas registradas (${d.rows.length})</h3>${detalle}`;
+      }
+      else {
+        const d = await api('/api/reportes-cantidades?' + query);
+        const filas = d.filas.map((f) => {
+          const pct = f.estimado ? Math.round((f.cosechado / f.estimado) * 100) : null;
+          return [f.cultivo, `<b>${f.cosechado}</b> ${f.unidad}`, `${f.estimado || '—'} ${f.estimado ? f.unidad : ''}`,
+            pct != null ? `${pct}%` : '—', f.eventos];
+        });
+        $('#repContenido').innerHTML = `<h3>Cantidades cosechadas por cultivo</h3>
+          <p class="muted">Compara lo cosechado contra lo estimado.</p>
+          ${tablaHTML(['Cultivo', 'Cosechado', 'Estimado', 'Cumplimiento', 'Eventos'], filas)}`;
+      }
+    }
+
+    $$('.tab').forEach((t) => t.onclick = () => {
+      $$('.tab').forEach((x) => x.classList.remove('activo'));
+      t.classList.add('activo');
+      repActual = t.dataset.rep;
+      render();
+    });
+    $('#rAplicar').onclick = render;
+
+    (async () => { await montarShell('reportes'); await render(); })();
+  </script>
+</body>
+</html>

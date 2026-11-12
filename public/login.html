@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Entrar — Campo Reportes</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="auth-body">
+  <div class="auth-card">
+    <div class="auth-logo">🌱</div>
+    <h1>Campo Reportes</h1>
+    <p class="muted">Entra a tu tablero de campo</p>
+    <form id="form">
+      <label>Correo</label>
+      <input type="email" id="email" required placeholder="tu@empresa.com" />
+      <label>Contraseña</label>
+      <input type="password" id="password" required placeholder="••••••••" />
+      <div id="err" class="auth-err" hidden></div>
+      <button class="btn btn-wa btn-block" type="submit">Entrar</button>
+    </form>
+    <p class="muted center">¿No tienes cuenta? <a href="/registro.html">Registra tu empresa</a></p>
+  </div>
+  <script>
+    const err = document.getElementById('err');
+    document.getElementById('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      err.hidden = true;
+      const res = await fetch('/auth/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: document.getElementById('email').value,
+          password: document.getElementById('password').value,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) location.href = data.redirect || '/';
+      else { err.textContent = data.error || 'Error al entrar'; err.hidden = false; }
+    });
+  </script>
+</body>
+</html>

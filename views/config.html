@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Configuración — Campo Reportes</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header id="nav" class="topbar"></header>
+  <div class="page">
+    <h2>Configuración de la empresa</h2>
+
+    <div class="tabs">
+      <button class="tab activo" data-tab="acciones">Acciones reportables</button>
+      <button class="tab" data-tab="catalogos">Catálogos</button>
+      <button class="tab" data-tab="marca">Marca</button>
+      <button class="tab" data-tab="usuarios">Usuarios</button>
+    </div>
+
+    <!-- Acciones -->
+    <section class="tabpane" id="pane-acciones">
+      <p class="muted">Define qué puede reportar tu equipo por WhatsApp. Las <b>palabras clave</b> activan cada acción al interpretar el mensaje. Los <b>campos</b> son datos extra que guarda la acción.</p>
+      <div id="listaAcciones"></div>
+      <button id="btnNuevaAccion" class="btn btn-wa">+ Nueva acción</button>
+    </section>
+
+    <!-- Catálogos -->
+    <section class="tabpane" id="pane-catalogos" hidden>
+      <div class="cat-grid">
+        <div class="cat-box">
+          <h3>🌱 Cultivos</h3>
+          <div id="listaCultivos" class="chips-list"></div>
+          <div class="cat-add"><input id="nuevoCultivo" placeholder="Ej: Maíz" /><button class="btn btn-sm" data-add="cultivo">+</button></div>
+        </div>
+        <div class="cat-box">
+          <h3>📍 Lotes / Parcelas</h3>
+          <div id="listaLotes" class="chips-list"></div>
+          <div class="cat-add"><input id="nuevoLote" placeholder="Ej: Lote 4" /><button class="btn btn-sm" data-add="lote">+</button></div>
+        </div>
+        <div class="cat-box">
+          <h3>🧪 Insumos</h3>
+          <div id="listaInsumos" class="chips-list"></div>
+          <div class="cat-add"><input id="nuevoInsumo" placeholder="Ej: Glifosato" /><button class="btn btn-sm" data-add="insumo">+</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Marca -->
+    <section class="tabpane" id="pane-marca" hidden>
+      <div class="form-box">
+        <label>Nombre de la empresa</label>
+        <input id="mNombre" type="text" />
+        <label>Color principal</label>
+        <input id="mColor" type="color" />
+        <label>Logo (URL de imagen)</label>
+        <input id="mLogo" type="text" placeholder="https://..." />
+        <label>Número de WhatsApp entrante (opcional)</label>
+        <input id="mWa" type="text" placeholder="+502..." />
+        <button id="btnGuardarMarca" class="btn btn-wa">Guardar marca</button>
+        <span id="marcaOk" class="ok-msg" hidden>✓ Guardado</span>
+      </div>
+    </section>
+
+    <!-- Usuarios -->
+    <section class="tabpane" id="pane-usuarios" hidden>
+      <table class="tabla mini"><thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th></tr></thead><tbody id="listaUsuarios"></tbody></table>
+      <h3>Invitar usuario</h3>
+      <div class="form-row">
+        <input id="uNombre" placeholder="Nombre" />
+        <input id="uEmail" placeholder="correo@empresa.com" />
+        <input id="uPass" placeholder="Contraseña" type="text" />
+        <select id="uRol"><option value="supervisor">Supervisor</option><option value="admin">Admin</option></select>
+        <button id="btnAddUsuario" class="btn btn-wa">Agregar</button>
+      </div>
+      <div id="usuarioErr" class="auth-err" hidden></div>
+    </section>
+  </div>
+
+  <!-- Modal accion -->
+  <div id="modalAccion" class="modal" hidden>
+    <div class="modal-card">
+      <button class="modal-close" data-close>✕</button>
+      <h2 id="accionTitulo">Acción</h2>
+      <label>Nombre visible</label>
+      <input id="aNombre" type="text" />
+      <div class="row2">
+        <div><label>Ícono (emoji)</label><input id="aIcono" type="text" maxlength="3" /></div>
+        <div><label>Color</label><input id="aColor" type="color" /></div>
+      </div>
+      <label>Clave interna</label>
+      <input id="aClave" type="text" placeholder="ej: poda" />
+      <label>Palabras clave (separadas por coma)</label>
+      <input id="aPalabras" type="text" placeholder="podé, poda, podar" />
+      <label>Campos extra (separados por coma)</label>
+      <input id="aCampos" type="text" placeholder="variedad, turno, máquina" />
+      <label class="chk"><input type="checkbox" id="aActivo" checked /> Activa</label>
+      <button id="btnGuardarAccion" class="btn btn-wa btn-block">Guardar acción</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { montarShell, api } from './common.js';
+    const $ = (s) => document.querySelector(s);
+    const $$ = (s) => document.querySelectorAll(s);
+    let editandoClave = null;
+
+    // Tabs
+    $$('.tab').forEach((t) => t.onclick = () => {
+      $$('.tab').forEach((x) => x.classList.remove('activo'));
+      t.classList.add('activo');
+      $$('.tabpane').forEach((p) => p.hidden = true);
+      $('#pane-' + t.dataset.tab).hidden = false;
+    });
+
+    /* ---- Acciones ---- */
+    async function cargarAcciones() {
+      const acc = await api('/config/acciones');
+      $('#listaAcciones').innerHTML = acc.map((a) => `
+        <div class="accion-row">
+          <span class="badge" style="background:${a.color}">${a.icono} ${a.nombre}</span>
+          <span class="muted clave">${a.clave}</span>
+          <span class="muted palabras">${a.palabras_clave || '<sin palabras clave>'}</span>
+          <span class="campos">${(a.campos || []).map((c) => `<span class="mini-chip">${c.label}</span>`).join('')}</span>
+          <span class="estado-dot ${a.activo ? 'on' : 'off'}">${a.activo ? 'Activa' : 'Inactiva'}</span>
+          <button class="btn btn-sm" data-edit="${a.clave}">Editar</button>
+          <button class="btn btn-sm btn-del" data-del="${a.clave}">🗑</button>
+        </div>`).join('');
+      $$('[data-edit]').forEach((b) => b.onclick = () => abrirAccion(acc.find((a) => a.clave === b.dataset.edit)));
+      $$('[data-del]').forEach((b) => b.onclick = async () => {
+        if (confirm('¿Eliminar esta acción?')) { await api('/config/acciones/' + b.dataset.del, { method: 'DELETE' }); cargarAcciones(); }
+      });
+    }
+    function abrirAccion(a) {
+      editandoClave = a ? a.clave : null;
+      $('#accionTitulo').textContent = a ? 'Editar acción' : 'Nueva acción';
+      $('#aNombre').value = a?.nombre || '';
+      $('#aIcono').value = a?.icono || '📝';
+      $('#aColor').value = a?.color || '#64748b';
+      $('#aClave').value = a?.clave || '';
+      $('#aClave').disabled = !!a;
+      $('#aPalabras').value = a?.palabras_clave || '';
+      $('#aCampos').value = (a?.campos || []).map((c) => c.label).join(', ');
+      $('#aActivo').checked = a ? !!a.activo : true;
+      $('#modalAccion').hidden = false;
+    }
+    $('#btnNuevaAccion').onclick = () => abrirAccion(null);
+    $('#btnGuardarAccion').onclick = async () => {
+      const campos = $('#aCampos').value.split(',').map((s) => s.trim()).filter(Boolean)
+        .map((label) => ({ clave: label.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '_'), label, tipo: 'texto' }));
+      const body = {
+        clave: $('#aClave').value || $('#aNombre').value,
+        nombre: $('#aNombre').value,
+        icono: $('#aIcono').value, color: $('#aColor').value,
+        palabras_clave: $('#aPalabras').value, campos,
+        activo: $('#aActivo').checked,
+      };
+      if (!body.nombre) return alert('Falta el nombre');
+      await api('/config/acciones', { method: 'POST', body });
+      $('#modalAccion').hidden = true;
+      cargarAcciones();
+    };
+
+    /* ---- Catálogos ---- */
+    async function cargarCat(tipo) {
+      const map = { cultivo: ['/config/cultivos', '#listaCultivos'], lote: ['/config/lotes', '#listaLotes'], insumo: ['/config/insumos', '#listaInsumos'] };
+      const [url, cont] = map[tipo];
+      const items = await api(url);
+      $(cont).innerHTML = items.map((i) =>
+        `<span class="chip-cat">${i.nombre}<button data-delcat="${tipo}" data-id="${i.id}">✕</button></span>`).join('') || '<span class="muted">Vacío</span>';
+      $$(`[data-delcat="${tipo}"]`).forEach((b) => b.onclick = async () => {
+        await api(`${url}/${b.dataset.id}`, { method: 'DELETE' }); cargarCat(tipo);
+      });
+    }
+    $$('[data-add]').forEach((b) => b.onclick = async () => {
+      const tipo = b.dataset.add;
+      const input = { cultivo: '#nuevoCultivo', lote: '#nuevoLote', insumo: '#nuevoInsumo' }[tipo];
+      const url = { cultivo: '/config/cultivos', lote: '/config/lotes', insumo: '/config/insumos' }[tipo];
+      const nombre = $(input).value.trim();
+      if (!nombre) return;
+      await api(url, { method: 'POST', body: { nombre } });
+      $(input).value = '';
+      cargarCat(tipo);
+    });
+
+    /* ---- Marca ---- */
+    async function cargarMarca() {
+      const s = await api('/auth/yo');
+      $('#mNombre').value = s.empresa.nombre;
+      $('#mColor').value = s.empresa.color_primario || '#166534';
+      $('#mLogo').value = s.empresa.logo_url || '';
+    }
+    $('#btnGuardarMarca').onclick = async () => {
+      await api('/config/empresa', { method: 'PUT', body: {
+        nombre: $('#mNombre').value, color_primario: $('#mColor').value,
+        logo_url: $('#mLogo').value, whatsapp_numero: $('#mWa').value,
+      }});
+      $('#marcaOk').hidden = false;
+      setTimeout(() => location.reload(), 700);
+    };
+
+    /* ---- Usuarios ---- */
+    async function cargarUsuarios() {
+      try {
+        const us = await api('/config/usuarios');
+        $('#listaUsuarios').innerHTML = us.map((u) =>
+          `<tr><td>${u.nombre}</td><td>${u.email}</td><td><span class="rol-tag">${u.rol}</span></td></tr>`).join('');
+      } catch { $('#pane-usuarios').innerHTML = '<p class="muted">Solo administradores pueden gestionar usuarios.</p>'; }
+    }
+    $('#btnAddUsuario').onclick = async () => {
+      $('#usuarioErr').hidden = true;
+      try {
+        await api('/config/usuarios', { method: 'POST', body: {
+          nombre: $('#uNombre').value, email: $('#uEmail').value,
+          password: $('#uPass').value, rol: $('#uRol').value,
+        }});
+        $('#uNombre').value = $('#uEmail').value = $('#uPass').value = '';
+        cargarUsuarios();
+      } catch (e) { $('#usuarioErr').textContent = e.message; $('#usuarioErr').hidden = false; }
+    };
+
+    (async () => {
+      await montarShell('config');
+      await cargarAcciones();
+      await Promise.all([cargarCat('cultivo'), cargarCat('lote'), cargarCat('insumo')]);
+      await cargarMarca();
+      await cargarUsuarios();
+    })();
+  </script>
+</body>
+</html>
