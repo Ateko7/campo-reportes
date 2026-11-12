@@ -91,6 +91,7 @@ router.get('/diag', async (req, res) => {
     if (action === 'product') return res.json(await recurrenteRaw('/products', { method: 'POST', body }));
     if (action === 'checkout') return res.json(await recurrenteRaw('/checkouts', { method: 'POST', body }));
     if (action === 'get') return res.json(await recurrenteRaw(req.query.path || '/products'));
+    if (action === 'post') return res.json(await recurrenteRaw(req.query.path, { method: 'POST', body }));
     res.json({ error: 'acción desconocida' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
